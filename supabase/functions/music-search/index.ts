@@ -1,5 +1,7 @@
 // BytesMusic music search edge function
+// Searches the BytesMusic database (songs, artists, albums) directly
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +19,7 @@ serve(async (req: Request) => {
     const query = url.searchParams.get("q")?.trim();
 
     if (!query) {
-      return new Response(JSON.stringify({ results: [] }), {
+      return new Response(JSON.stringify({ results: [], artists: [], albums: [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -29,67 +31,37 @@ serve(async (req: Request) => {
       });
     }
 
-    // Use YouTube Innertube API (no key required) for music search
-    const innertubeRes = await fetch(
-      "https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          context: {
-            client: {
-              clientName: "WEB_REMIX",
-              clientVersion: "1.20240401.01.00",
-            },
-          },
-          query: query,
-          params: "EgWKAQIIAWoKEAMQBBAFEAkYBA%3D%3D",
-        }),
-      }
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (!innertubeRes.ok) throw new Error("Search request failed");
+    const pattern = `%${query}%`;
 
-    const innertubeData = await innertubeRes.json();
-    const contents =
-      innertubeData?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content
-        ?.sectionListRenderer?.contents ?? [];
+    const [songsRes, artistsRes, albumsRes] = await Promise.all([
+      supabase
+        .from("songs")
+        .select("*, artist:artists(*)")
+        .ilike("title", pattern)
+        .eq("is_published", true)
+        .order("plays", { ascending: false })
+        .limit(25),
+      supabase
+        .from("artists")
+        .select("*")
+        .ilike("name", pattern)
+        .limit(10),
+      supabase
+        .from("albums")
+        .select("*, artist:artists(*)")
+        .ilike("title", pattern)
+        .limit(10),
+    ]);
 
-    const results: { videoId: string; title: string; artist: string; duration: string; thumbnail: string }[] = [];
-
-    for (const section of contents) {
-      const items = section?.musicShelfRenderer?.contents ?? [];
-      for (const item of items) {
-        const song = item?.musicResponsiveListItemRenderer;
-        if (!song) continue;
-
-        const overlay =
-          song?.thumbnailOverlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer
-            ?.playNavigationEndpoint?.watchEndpoint;
-        const videoId = overlay?.videoId;
-        if (!videoId) continue;
-
-        const title =
-          song?.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text ??
-          "Unknown";
-        const artistRuns =
-          song?.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? [];
-        const artist =
-          artistRuns
-            .filter((r: any) => r?.text)
-            .map((r: any) => r.text)
-            .join(" ")
-            .trim() || "Unknown";
-        const thumbnail =
-          song?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.pop()?.url ?? "";
-        const duration =
-          song?.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.simpleText ?? "";
-
-        results.push({ videoId, title, artist, duration, thumbnail });
-      }
-    }
-
-    return new Response(JSON.stringify({ results: results.slice(0, 25) }), {
+    return new Response(JSON.stringify({
+      results: songsRes.data ?? [],
+      artists: artistsRes.data ?? [],
+      albums: albumsRes.data ?? [],
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
