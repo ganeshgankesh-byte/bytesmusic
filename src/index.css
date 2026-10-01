@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-base-600;
+  }
+  body {
+    @apply bg-base-900 text-ink-100 antialiased;
+    font-feature-settings: "ss01", "cv01", "cv03";
+  }
+  ::selection {
+    @apply bg-mint-500/30 text-mint-100;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-mint-500 px-5 py-2.5 text-sm font-semibold text-base-900 transition-all hover:bg-mint-400 active:scale-95 disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-base-500 bg-base-700 px-5 py-2.5 text-sm font-semibold text-ink-100 transition-all hover:border-mint-700 hover:bg-base-600 active:scale-95;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-ink-300 transition-all hover:bg-base-700 hover:text-mint-400;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-danger-500/10 px-4 py-2 text-sm font-medium text-danger-500 transition-all hover:bg-danger-500 hover:text-white active:scale-95;
+  }
+  .input-field {
+    @apply w-full rounded-lg border border-base-500 bg-base-800 px-4 py-2.5 text-sm text-ink-100 placeholder-ink-400 outline-none transition-all focus:border-mint-500 focus:ring-1 focus:ring-mint-500/50;
+  }
+  .card {
+    @apply rounded-xl border border-base-600 bg-base-800 transition-all;
+  }
+  .card-hover {
+    @apply hover:border-mint-700/50 hover:bg-base-700 hover:shadow-lg hover:shadow-mint-500/5;
+  }
+  .section-title {
+    @apply text-xl font-bold text-ink-50 sm:text-2xl;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0d120d;
+}
+::-webkit-scrollbar-thumb {
+  background: #2d3d2d;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00b377;
+}
+
+/* Hide scrollbar for horizontal scroll rows */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

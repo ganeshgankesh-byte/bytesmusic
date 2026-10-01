@@ -1,371 +1,213 @@
-# 🎧 OpenTune
+# BytesMusic
 
-### A YouTube Music-style open-source music player — without the clutter.
+### A modern open-source music platform with a full admin CMS.
 
-**OpenTune** is an open-source web music client built by **[@harshitethic](https://github.com/harshitethic)**.
-
-It is designed to feel familiar to YouTube Music while using a custom **OpenTune / @harshitethic** interface: dark, minimal, fast, and focused on listening.
+**BytesMusic** is a modern web music platform built with React, Vite, and Supabase. It features music search, playback, queuing, history, likes, and a complete admin panel for managing all site content.
 
 > **Search music. Play it. Build a queue. Keep your history. Discover more.**
 
 ---
 
-## ✨ Features
+## Features
 
-### 🎵 Music discovery
-- Search the public YouTube Music catalog
-- Search by songs, artists, albums and videos
-- Supports international music, including Hindi, Punjabi, Tamil, Telugu, English, and more
-- Uses the open-source [`ytmusicapi`](https://github.com/sigma67/ytmusicapi) project
+### Music discovery
+- Search the YouTube Music catalog via a serverless edge function
+- Supports international music — Hindi, Punjabi, Tamil, Telugu, English, and more
 - No Google Cloud API key required
 
-### ▶️ Playback
+### Playback
 - YouTube's official embedded player
-- Play songs directly from search results
+- Play songs directly from search results or admin-curated content
 - Previous / next controls
-- Persistent bottom player
+- Persistent bottom player bar
 - Volume control
 - Shuffle
-- Repeat
+- Repeat (off / all / one)
 - Up Next queue
 
-### 🧠 Discovery & recommendations
-- Recommendation section
-- Queue-based listening
-- Recently played history
-- Personalized recommendations when an OpenTune account is enabled
-
-### ❤️ Personal library
+### Personal library
 - Like songs
 - Listening history
-- Queue
-- Optional account system
+- Queue management
+- Account system via Supabase Auth (email/password)
 
-### 👤 Simple OpenTune accounts
-
-Accounts are completely optional.
-
-Sign up with:
-
-```text
-Username
-Password
-Recovery question
-Recovery answer
-```
-
-Password recovery uses the recovery answer.
-
-There is intentionally:
-
-- ❌ No Google OAuth
-- ❌ No email verification
-- ❌ No phone verification
-- ❌ No QR authentication
-- ❌ No API key required
-
-This is a simple local account system intended for the OpenTune project.
+### Admin Panel (CMS)
+- Secure admin panel at `/admin`
+- Only `technoproboizz@gmail.com` has admin access
+- Admin enforced at the database level via RLS policies and a `is_admin()` SQL function
+- Manage songs, artists, albums, and playlists
+- Add, edit, delete, search and filter all content
+- Control homepage sections: Trending, Featured, New Releases, Popular, Featured Artists, Featured Albums, Playlists
+- Manage hero/banner slides
+- Reorder homepage sections
+- Toggle section visibility
+- Dashboard with platform statistics
 
 ---
 
-## 🎨 Design
+## Design
 
-OpenTune is styled around the **@harshitethic** portfolio aesthetic:
-
-- Deep green / black interface
-- Neon mint accents
-- Minimal typography
-- Technical / developer-inspired UI
-- YouTube Music-inspired information architecture
+BytesMusic features a deep green/black interface with neon mint accents, minimal typography, and a YouTube Music-inspired information architecture.
 
 ---
 
-## 🖥️ Screenshots
-
-### Home
-![OpenTune home](docs/opentune-1.png)
-
-### Search & playback
-![OpenTune search and playback](docs/opentune-2.png)
-
-### Queue & Up Next
-![OpenTune queue](docs/opentune-3.png)
-
-### Sign in
-![OpenTune sign in](docs/opentune-4.png)
-
-### Create account
-![OpenTune create account](docs/opentune-5.png)
-
-### Mobile / responsive UI
-![OpenTune mobile](docs/opentune-6.png)
-
-### Project in development
-![OpenTune development](docs/opentune-7.png)
-
----
-
-## 🏗️ Architecture
+## Architecture
 
 ```text
 ┌──────────────────────────────┐
-│          OpenTune UI         │
-│      HTML / CSS / JS         │
+│       BytesMusic UI          │
+│    React + Vite + Tailwind   │
 └──────────────┬───────────────┘
                │
                ▼
 ┌──────────────────────────────┐
-│        OpenTune Server       │
-│          Python              │
-└──────────────┬───────────────┘
-               │
-        ┌──────┴──────┐
-        ▼             ▼
+│        Supabase              │
+│   Auth + Database + RLS      │
+│   + Edge Functions           │
+└──────┬──────────┬────────────┘
+       │          │
+       ▼          ▼
 ┌──────────────┐ ┌──────────────┐
-│  ytmusicapi  │ │   SQLite     │
-│ Music search │ │ Accounts /   │
-│              │ │ History /    │
-│              │ │ Likes        │
-└──────┬───────┘ └──────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│ YouTube official embedded    │
-│ player                       │
-└──────────────────────────────┘
+│  YouTube     │ │  Supabase    │
+│  Embedded    │ │  Postgres    │
+│  Player      │ │  CMS tables  │
+└──────────────┘ └──────────────┘
 ```
 
-OpenTune does **not** download, extract, or re-host YouTube audio.
+BytesMusic does **not** download, extract, or re-host YouTube audio.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Requirements
 
-- Python 3.10+
+- Node.js 18+
 - A modern browser
-- Internet connection
 
-### 1. Clone
-
-```bash
-git clone https://github.com/harshitethic/OpenTune.git
-cd OpenTune
-```
-
-### 2. Install dependencies
-
-Windows:
-
-```powershell
-py -m pip install -r requirements.txt
-```
-
-macOS / Linux:
+### 1. Install dependencies
 
 ```bash
-python3 -m pip install -r requirements.txt
+npm install
 ```
 
-### 3. Start OpenTune
-
-Windows:
-
-```powershell
-py app.py
-```
-
-macOS / Linux:
+### 2. Start the dev server
 
 ```bash
-python3 app.py
+npm run dev
 ```
 
-### 4. Open the app
+### 3. Open the app
+
+```
+http://localhost:5173
+```
+
+---
+
+## Admin Access
+
+The admin panel is at `/admin`. Only the email `technoproboizz@gmail.com` can access it.
+
+1. Create an account with the email `technoproboizz@gmail.com`
+2. Navigate to `/admin`
+3. Manage all site content from the admin dashboard
+
+Admin access is enforced at three levels:
+- **Frontend**: React router guard checks `user.email === admin_email`
+- **Database RLS**: All CMS tables have INSERT/UPDATE/DELETE policies that call `is_admin()`
+- **SQL function**: `is_admin()` compares the authenticated user's JWT email against the admin email stored in `admin_config`
+
+---
+
+## Project Structure
 
 ```text
-http://localhost:8000
+BytesMusic/
+├── src/
+│   ├── components/
+│   │   ├── Layout.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── PlayerBar.tsx
+│   │   └── SongCard.tsx
+│   ├── context/
+│   │   ├── AuthContext.tsx
+│   │   └── PlayerContext.tsx
+│   ├── lib/
+│   │   └── supabase.ts
+│   ├── pages/
+│   │   ├── Home.tsx
+│   │   ├── Search.tsx
+│   │   ├── History.tsx
+│   │   ├── Likes.tsx
+│   │   ├── Login.tsx
+│   │   ├── Register.tsx
+│   │   ├── PlaylistPage.tsx
+│   │   ├── NotFound.tsx
+│   │   └── admin/
+│   │       ├── AdminLayout.tsx
+│   │       ├── AdminDashboard.tsx
+│   │       ├── AdminSongs.tsx
+│   │       ├── AdminArtists.tsx
+│   │       ├── AdminAlbums.tsx
+│   │       ├── AdminPlaylists.tsx
+│   │       ├── AdminUsers.tsx
+│   │       └── AdminHomepage.tsx
+│   ├── types/
+│   │   └── index.ts
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css
+├── supabase/
+│   ├── config.toml
+│   └── functions/
+│       └── music-search/
+│           └── index.ts
+├── public/
+│   └── favicon.svg
+├── index.html
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── tailwind.config.js
+└── postcss.config.js
 ```
 
 ---
 
-## 📁 Project Structure
+## Security
 
-```text
-OpenTune/
-├── static/
-│   └── index.html
-├── tests/
-│   └── test_app.py
-├── .github/
-│   └── workflows/
-│       └── tests.yml
-├── docs/
-│   ├── opentune-1.png
-│   ├── opentune-2.png
-│   ├── opentune-3.png
-│   ├── opentune-4.png
-│   ├── opentune-5.png
-│   ├── opentune-6.png
-│   └── opentune-7.png
-├── app.py
-├── requirements.txt
-├── README.md
-└── LICENSE
-```
-
-`opentune.db` is generated locally at runtime and should not be committed.
+- All CMS tables (songs, artists, albums, playlists, homepage_sections, hero_slides) are publicly readable but admin-only for writes
+- `is_admin()` SQL function checks the authenticated user's email against the admin email in `admin_config`
+- RLS policies on every table enforce ownership and admin checks at the database level
+- User history and likes are owner-scoped via `auth.uid()`
 
 ---
 
-## 🔧 Configuration
+## Important
 
-OpenTune is designed to run without paid APIs.
-
-There is no Google/YouTube API key required for the core music search.
-
-The project uses the public functionality exposed through the open-source `ytmusicapi` ecosystem.
-
----
-
-## 🔐 Privacy & accounts
-
-OpenTune does not require an account to search and listen.
-
-If you create an OpenTune account, account-related data is used for features such as history, likes, recommendations, and password recovery.
-
-Do not use a password you use for important external accounts.
-
-The built-in recovery-question system is intentionally simple and **should not be treated as enterprise-grade authentication**.
-
----
-
-## ⚠️ Important
-
-OpenTune is an independent open-source project.
+BytesMusic is an independent open-source project.
 
 It is **not affiliated with, endorsed by, or sponsored by YouTube or Google**.
 
 YouTube playback is provided through YouTube's official embedded player.
 
-OpenTune does not:
+BytesMusic does not:
 
 - Download YouTube audio
 - Re-host YouTube audio
 - Circumvent YouTube playback restrictions
 - Provide DRM bypass functionality
 
-Users are responsible for complying with the terms and laws applicable to the services and content they access.
-
 ---
 
-## 🛠️ Roadmap
-
-- [ ] Better recommendation engine
-- [ ] Improved mobile experience
-- [ ] PWA / installable app
-- [ ] Playlists
-- [ ] Public playlists
-- [ ] Artist pages
-- [ ] Album pages
-- [ ] Better queue management
-- [ ] Keyboard shortcuts
-- [ ] More personalization
-- [ ] Optional local AI music recommendations
-- [ ] Accessibility improvements
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome.
-
-```bash
-git fork https://github.com/harshitethic/OpenTune
-```
-
-Then:
-
-```bash
-git checkout -b feature/my-feature
-```
-
-Install the dependencies and run the test suite before opening a PR:
-
-```bash
-python3 -m pip install -r requirements.txt
-python3 -m unittest discover -s tests -v
-```
-
-For UI or API changes, also start the app locally and verify the affected flow:
-
-```bash
-python3 app.py
-```
-
-Make your changes, test them locally, and open a pull request. GitHub Actions runs the unit tests automatically on pushes and pull requests.
-
-Good first contributions include UI improvements, bug fixes, mobile responsiveness, accessibility, search improvements, recommendation logic, documentation, and tests.
-
----
-
-## 🧪 Development
-
-Run the server locally:
-
-```bash
-py app.py
-```
-
-Then open:
-
-```text
-http://localhost:8000
-```
-
-Before submitting a PR, make sure the app starts, search works, playback works, account functionality remains intact, and no secrets or runtime database files are committed.
-
-### Running tests
-
-The repository uses Python's built-in `unittest` framework. No separate test runner is required.
-
-```bash
-python3 -m unittest discover -s tests -v
-```
-
-The same command is executed by GitHub Actions for every push and pull request.
-
----
-
-## 📜 License
+## License
 
 Released under the [MIT License](LICENSE).
 
 ---
 
-## 👨‍💻 Built by
-
-### @harshitethic
-
-**GitHub:** https://github.com/harshitethic  
-**Portfolio:** https://harshitethic.com
-
----
-
-## ⭐ Support the project
-
-If OpenTune is useful to you:
-
-⭐ Star the repository  
-🐛 Report bugs  
-💡 Suggest features  
-🔧 Submit pull requests  
-📢 Share the project
-
----
-
 <p align="center">
-  <strong>OpenTune</strong><br>
+  <strong>BytesMusic</strong><br>
   Open music. Your way.
 </p>
