@@ -276,17 +276,9 @@ function YouTubeResultCard({
 }) {
   const { playTrack } = usePlayer();
 
-  const track = {
-    videoId: result.videoId,
-    title: result.title,
-    artist: result.channel,
-    thumbnail: result.thumbnail,
-    duration: "",
-  };
-
   return (
     <div
-      onClick={() => playTrack(track as any, queue as any)}
+      onClick={() => playTrack(result, queue)}
       className="group card card-hover cursor-pointer p-3"
     >
       <div className="relative mb-3 aspect-video w-full overflow-hidden rounded-lg bg-base-700">

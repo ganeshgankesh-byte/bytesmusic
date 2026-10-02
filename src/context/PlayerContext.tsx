@@ -1,6 +1,6 @@
 import { createContext, useContext, useRef, useState, useCallback, type ReactNode } from "react";
 import type { QueueItem } from "../types";
-import { isSong } from "../types";
+import { isSong, isYouTubeResult } from "../types";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
 
@@ -16,6 +16,7 @@ interface PlayerContextValue {
   isShuffled: boolean;
   repeatMode: RepeatMode;
   playerReady: boolean;
+  playbackError: string | null;
   playTrack: (track: QueueItem, queue?: QueueItem[]) => void;
   togglePlay: () => void;
   next: () => void;
@@ -27,6 +28,7 @@ interface PlayerContextValue {
   removeFromQueue: (index: number) => void;
   addToQueue: (track: QueueItem) => void;
   clearQueue: () => void;
+  dismissError: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextValue | undefined>(undefined);
@@ -68,6 +70,7 @@ function getTitle(track: QueueItem): string {
 
 function getArtist(track: QueueItem): string {
   if (isSong(track)) return track.artist?.name ?? "";
+  if (isYouTubeResult(track)) return track.channel;
   return (track as any).artist ?? "";
 }
 
@@ -77,7 +80,14 @@ function getThumbnail(track: QueueItem): string {
     if (track.video_id) return `https://i.ytimg.com/vi/${track.video_id}/mqdefault.jpg`;
     return "";
   }
+  if (isYouTubeResult(track)) return track.thumbnail;
   return (track as any).thumbnail ?? (track as any).cover_url ?? "";
+}
+
+function isYouTubeSource(track: QueueItem): boolean {
+  if (isYouTubeResult(track)) return true;
+  if (isSong(track)) return !!track.video_id;
+  return true;
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
@@ -93,6 +103,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isShuffled, setIsShuffled] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
   const [playerReady, setPlayerReady] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   const recordHistory = useCallback(
     async (track: QueueItem) => {
@@ -114,10 +125,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const loadAndPlay = useCallback(
     (track: QueueItem, idx: number) => {
       const vid = getVideoId(track);
-      if (!vid) return;
+      if (!vid) {
+        setPlaybackError("This track has no video ID and cannot be played.");
+        return;
+      }
       setCurrentTrack(track);
       setCurrentIndex(idx);
       setPlayerReady(false);
+      setPlaybackError(null);
 
       loadYouTubeAPI().then(() => {
         if (containerRef.current) {
@@ -147,11 +162,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               e.target.playVideo();
             },
             onStateChange: (e: any) => {
-              if (e.data === window.YT.PlayerState.PLAYING) setIsPlaying(true);
+              if (e.data === window.YT.PlayerState.PLAYING) {
+                setIsPlaying(true);
+                setPlaybackError(null);
+              }
               if (e.data === window.YT.PlayerState.PAUSED) setIsPlaying(false);
               if (e.data === window.YT.PlayerState.ENDED) {
                 handleEnded();
               }
+            },
+            onError: (e: any) => {
+              const errorCodes: Record<number, string> = {
+                2: "Invalid video parameter. This video cannot be played.",
+                5: "The YouTube player could not load this video. Please try again.",
+                100: "This video was removed or is no longer available on YouTube.",
+                101: "The owner of this video does not allow embedded playback.",
+                150: "The owner of this video does not allow embedded playback.",
+              };
+              const msg = errorCodes[e.data] ?? "This video could not be played. It may be restricted or unavailable.";
+              setPlaybackError(msg);
+              setPlayerReady(false);
+              setIsPlaying(false);
             },
           },
         });
@@ -267,6 +298,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setQueue([]);
     setCurrentIndex(-1);
     setCurrentTrack(null);
+    setPlaybackError(null);
     if (playerRef.current) {
       try {
         playerRef.current.destroy();
@@ -275,6 +307,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     }
   }, []);
+
+  const dismissError = useCallback(() => setPlaybackError(null), []);
 
   return (
     <PlayerContext.Provider
@@ -288,6 +322,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         isShuffled,
         repeatMode,
         playerReady,
+        playbackError,
         playTrack,
         togglePlay,
         next,
@@ -299,6 +334,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         removeFromQueue,
         addToQueue,
         clearQueue,
+        dismissError,
       }}
     >
       {children}
@@ -313,4 +349,4 @@ export function usePlayer() {
   return ctx;
 }
 
-export { getVideoId, getTitle, getArtist, getThumbnail };
+export { getVideoId, getTitle, getArtist, getThumbnail, isYouTubeSource };

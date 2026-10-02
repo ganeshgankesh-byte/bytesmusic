@@ -1,8 +1,8 @@
-import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Shuffle, Repeat, Repeat1, List, X, Heart } from "lucide-react";
-import { usePlayer, getThumbnail, getTitle, getArtist } from "../context/PlayerContext";
+import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Shuffle, Repeat, Repeat1, List, X, Heart, Youtube, AlertCircle } from "lucide-react";
+import { usePlayer, getThumbnail, getTitle, getArtist, isYouTubeSource } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
-import { isSong } from "../types";
+import { isSong, isYouTubeResult } from "../types";
 import { useState, useEffect } from "react";
 
 export default function PlayerBar() {
@@ -14,6 +14,7 @@ export default function PlayerBar() {
     isShuffled,
     repeatMode,
     playerReady,
+    playbackError,
     togglePlay,
     next,
     prev,
@@ -24,6 +25,7 @@ export default function PlayerBar() {
     queue,
     currentIndex,
     removeFromQueue,
+    dismissError,
   } = usePlayer();
   const { user } = useAuth();
   const [showQueue, setShowQueue] = useState(false);
@@ -77,9 +79,29 @@ export default function PlayerBar() {
   const thumb = getThumbnail(currentTrack);
   const title = getTitle(currentTrack);
   const artist = getArtist(currentTrack);
+  const fromYouTube = currentTrack ? isYouTubeResult(currentTrack) : false;
 
   return (
     <>
+      {playbackError && (
+        <div className="fixed bottom-16 left-0 right-0 z-30 flex items-center gap-3 border-t border-danger-500/30 bg-danger-500/10 px-4 py-2 backdrop-blur-md">
+          <AlertCircle className="shrink-0 text-danger-500" size={16} />
+          <p className="flex-1 truncate text-xs text-danger-500">{playbackError}</p>
+          <button
+            onClick={next}
+            className="shrink-0 rounded-lg bg-danger-500/20 px-2 py-1 text-xs font-medium text-danger-500 transition hover:bg-danger-500/30"
+          >
+            Skip
+          </button>
+          <button
+            onClick={dismissError}
+            className="shrink-0 text-danger-500 transition hover:text-danger-400"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {showQueue && (
         <div className="fixed bottom-16 right-4 z-30 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-base-600 bg-base-800 shadow-2xl animate-slide-up">
           <div className="flex items-center justify-between border-b border-base-600 p-3">
@@ -133,7 +155,15 @@ export default function PlayerBar() {
             <img src={thumb} alt="" className="h-11 w-11 rounded-lg object-cover" />
           )}
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-ink-50">{title}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-sm font-medium text-ink-50">{title}</p>
+              {fromYouTube && (
+                <span className="flex shrink-0 items-center gap-0.5 rounded bg-red-500/15 px-1 py-0.5 text-[9px] font-bold text-red-400">
+                  <Youtube size={9} />
+                  YT
+                </span>
+              )}
+            </div>
             <p className="truncate text-xs text-ink-400">{artist}</p>
           </div>
           {user && (

@@ -85,8 +85,12 @@ export interface YouTubeResult {
   thumbnail: string;
 }
 
-export type QueueItem = Song | SearchTrack;
+export type QueueItem = Song | SearchTrack | YouTubeResult;
 
 export function isSong(item: QueueItem): item is Song {
   return (item as Song).id !== undefined;
+}
+
+export function isYouTubeResult(item: QueueItem): item is YouTubeResult {
+  return !isSong(item) && (item as YouTubeResult).channel !== undefined;
 }
