@@ -78,6 +78,13 @@ export interface SearchTrack {
   thumbnail: string;
 }
 
+export interface YouTubeResult {
+  videoId: string;
+  title: string;
+  channel: string;
+  thumbnail: string;
+}
+
 export type QueueItem = Song | SearchTrack;
 
 export function isSong(item: QueueItem): item is Song {
