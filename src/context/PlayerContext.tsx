@@ -90,10 +90,24 @@ function isYouTubeSource(track: QueueItem): boolean {
   return true;
 }
 
+// Module-level player host div — kept outside React's tree so React re-renders
+// can never destroy or blank out the YT iframe during initialization.
+let playerHostDiv: HTMLDivElement | null = null;
+
+function getPlayerHost(): HTMLDivElement {
+  if (playerHostDiv && document.body.contains(playerHostDiv)) return playerHostDiv;
+  playerHostDiv = document.createElement("div");
+  playerHostDiv.style.cssText = "position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden;pointer-events:none;";
+  document.body.appendChild(playerHostDiv);
+  return playerHostDiv;
+}
+
+// Monotonic counter so we never reuse the same element id across player instances.
+let playerIdCounter = 0;
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const playerRef = useRef<any>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const [currentTrack, setCurrentTrack] = useState<QueueItem | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
@@ -129,24 +143,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setPlaybackError("This track has no video ID and cannot be played.");
         return;
       }
+
+      console.log("[BytesMusic Player] loadAndPlay called", { vid, trackType: isSong(track) ? "Song" : isYouTubeResult(track) ? "YouTubeResult" : "SearchTrack" });
+
       setCurrentTrack(track);
       setCurrentIndex(idx);
       setPlayerReady(false);
       setPlaybackError(null);
 
       loadYouTubeAPI().then(() => {
-        if (containerRef.current) {
-          containerRef.current.innerHTML = '<div id="yt-player"></div>';
-        }
+        // Destroy any previous player instance before creating a new one.
         if (playerRef.current) {
           try {
             playerRef.current.destroy();
           } catch {
             /* ignore */
           }
+          playerRef.current = null;
         }
-        playerRef.current = new window.YT.Player("yt-player", {
+
+        // Create a fresh, unique element inside the detached host div.
+        const host = getPlayerHost();
+        host.innerHTML = "";
+        const playerId = `yt-player-${++playerIdCounter}`;
+        const mountEl = document.createElement("div");
+        mountEl.id = playerId;
+        host.appendChild(mountEl);
+
+        console.log("[BytesMusic Player] Creating YT.Player with videoId:", vid, "mountId:", playerId);
+
+        playerRef.current = new window.YT.Player(playerId, {
           videoId: vid,
+          width: "1",
+          height: "1",
           playerVars: {
             autoplay: 1,
             controls: 0,
@@ -154,14 +183,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             modestbranding: 1,
             rel: 0,
             playsinline: 1,
+            origin: window.location.origin,
           },
           events: {
             onReady: (e: any) => {
+              console.log("[BytesMusic Player] onReady fired");
               setPlayerReady(true);
               e.target.setVolume(isMuted ? 0 : volume);
               e.target.playVideo();
             },
             onStateChange: (e: any) => {
+              const stateNames: Record<number, string> = {
+                [-1]: "UNSTARTED",
+                0: "ENDED",
+                1: "PLAYING",
+                2: "PAUSED",
+                3: "BUFFERING",
+                5: "CUED",
+              };
+              console.log("[BytesMusic Player] onStateChange:", stateNames[e.data] ?? e.data);
+
               if (e.data === window.YT.PlayerState.PLAYING) {
                 setIsPlaying(true);
                 setPlaybackError(null);
@@ -172,6 +213,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               }
             },
             onError: (e: any) => {
+              console.error("[BytesMusic Player] onError fired, code:", e.data);
               const errorCodes: Record<number, string> = {
                 2: "Invalid video parameter. This video cannot be played.",
                 5: "The YouTube player could not load this video. Please try again.",
@@ -186,6 +228,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             },
           },
         });
+      }).catch((err) => {
+        console.error("[BytesMusic Player] loadYouTubeAPI failed:", err);
+        setPlaybackError("Could not load the YouTube player. Please check your connection and try again.");
       });
 
       recordHistory(track);
@@ -226,7 +271,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     (track: QueueItem, newQueue?: QueueItem[]) => {
       const q = newQueue ?? [track];
       setQueue(q);
-      const idx = q.findIndex((t) => getVideoId(t) === getVideoId(track));
+      const trackVid = getVideoId(track);
+      const idx = q.findIndex((t) => getVideoId(t) === trackVid);
       loadAndPlay(track, idx >= 0 ? idx : 0);
     },
     [loadAndPlay]
@@ -305,6 +351,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       } catch {
         /* ignore */
       }
+      playerRef.current = null;
     }
   }, []);
 
@@ -338,7 +385,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-      <div ref={containerRef} className="hidden" aria-hidden="true" />
     </PlayerContext.Provider>
   );
 }
