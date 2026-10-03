@@ -1,4 +1,4 @@
-import { createContext, useContext, useRef, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useRef, useState, useCallback, useEffect, type ReactNode } from "react";
 import type { QueueItem } from "../types";
 import { isSong, isYouTubeResult } from "../types";
 import { supabase } from "../lib/supabase";
@@ -17,6 +17,8 @@ interface PlayerContextValue {
   repeatMode: RepeatMode;
   playerReady: boolean;
   playbackError: string | null;
+  currentTime: number;
+  duration: number;
   playTrack: (track: QueueItem, queue?: QueueItem[]) => void;
   togglePlay: () => void;
   next: () => void;
@@ -29,6 +31,7 @@ interface PlayerContextValue {
   addToQueue: (track: QueueItem) => void;
   clearQueue: () => void;
   dismissError: () => void;
+  seek: (seconds: number) => void;
 }
 
 const PlayerContext = createContext<PlayerContextValue | undefined>(undefined);
@@ -90,8 +93,13 @@ function isYouTubeSource(track: QueueItem): boolean {
   return true;
 }
 
-// Module-level player host div — kept outside React's tree so React re-renders
-// can never destroy or blank out the YT iframe during initialization.
+function formatTime(seconds: number): string {
+  if (!seconds || isNaN(seconds) || seconds < 0) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 let playerHostDiv: HTMLDivElement | null = null;
 
 function getPlayerHost(): HTMLDivElement {
@@ -102,7 +110,6 @@ function getPlayerHost(): HTMLDivElement {
   return playerHostDiv;
 }
 
-// Monotonic counter so we never reuse the same element id across player instances.
 let playerIdCounter = 0;
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
@@ -118,6 +125,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
   const [playerReady, setPlayerReady] = useState(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  // Poll the YT player for current time / duration while playing
+  useEffect(() => {
+    if (!playerReady || !playerRef.current) return;
+    const interval = setInterval(() => {
+      try {
+        const t = playerRef.current?.getCurrentTime?.() ?? 0;
+        const d = playerRef.current?.getDuration?.() ?? 0;
+        setCurrentTime(t);
+        if (d && d !== duration) setDuration(d);
+      } catch {
+        /* player may be in a transitional state */
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [playerReady, duration]);
 
   const recordHistory = useCallback(
     async (track: QueueItem) => {
@@ -144,15 +169,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      console.log("[BytesMusic Player] loadAndPlay called", { vid, trackType: isSong(track) ? "Song" : isYouTubeResult(track) ? "YouTubeResult" : "SearchTrack" });
-
       setCurrentTrack(track);
       setCurrentIndex(idx);
       setPlayerReady(false);
       setPlaybackError(null);
+      setCurrentTime(0);
+      setDuration(0);
 
       loadYouTubeAPI().then(() => {
-        // Destroy any previous player instance before creating a new one.
         if (playerRef.current) {
           try {
             playerRef.current.destroy();
@@ -162,15 +186,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           playerRef.current = null;
         }
 
-        // Create a fresh, unique element inside the detached host div.
         const host = getPlayerHost();
         host.innerHTML = "";
         const playerId = `yt-player-${++playerIdCounter}`;
         const mountEl = document.createElement("div");
         mountEl.id = playerId;
         host.appendChild(mountEl);
-
-        console.log("[BytesMusic Player] Creating YT.Player with videoId:", vid, "mountId:", playerId);
 
         playerRef.current = new window.YT.Player(playerId, {
           videoId: vid,
@@ -187,25 +208,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           },
           events: {
             onReady: (e: any) => {
-              console.log("[BytesMusic Player] onReady fired");
               setPlayerReady(true);
+              const d = e.target.getDuration?.() ?? 0;
+              if (d) setDuration(d);
               e.target.setVolume(isMuted ? 0 : volume);
               e.target.playVideo();
             },
             onStateChange: (e: any) => {
-              const stateNames: Record<number, string> = {
-                [-1]: "UNSTARTED",
-                0: "ENDED",
-                1: "PLAYING",
-                2: "PAUSED",
-                3: "BUFFERING",
-                5: "CUED",
-              };
-              console.log("[BytesMusic Player] onStateChange:", stateNames[e.data] ?? e.data);
-
               if (e.data === window.YT.PlayerState.PLAYING) {
                 setIsPlaying(true);
                 setPlaybackError(null);
+                const d = e.target.getDuration?.() ?? 0;
+                if (d) setDuration(d);
               }
               if (e.data === window.YT.PlayerState.PAUSED) setIsPlaying(false);
               if (e.data === window.YT.PlayerState.ENDED) {
@@ -213,7 +227,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               }
             },
             onError: (e: any) => {
-              console.error("[BytesMusic Player] onError fired, code:", e.data);
               const errorCodes: Record<number, string> = {
                 2: "Invalid video parameter. This video cannot be played.",
                 5: "The YouTube player could not load this video. Please try again.",
@@ -228,8 +241,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             },
           },
         });
-      }).catch((err) => {
-        console.error("[BytesMusic Player] loadYouTubeAPI failed:", err);
+      }).catch(() => {
         setPlaybackError("Could not load the YouTube player. Please check your connection and try again.");
       });
 
@@ -284,6 +296,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       playerRef.current.pauseVideo();
     } else {
       playerRef.current.playVideo();
+    }
+  }, [isPlaying]);
+
+  const seek = useCallback((seconds: number) => {
+    if (!playerRef.current) return;
+    try {
+      playerRef.current.seekTo(seconds, true);
+      setCurrentTime(seconds);
+      if (!isPlaying) {
+        playerRef.current.playVideo();
+      }
+    } catch {
+      /* ignore */
     }
   }, [isPlaying]);
 
@@ -345,6 +370,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setCurrentIndex(-1);
     setCurrentTrack(null);
     setPlaybackError(null);
+    setCurrentTime(0);
+    setDuration(0);
     if (playerRef.current) {
       try {
         playerRef.current.destroy();
@@ -370,6 +397,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         repeatMode,
         playerReady,
         playbackError,
+        currentTime,
+        duration,
         playTrack,
         togglePlay,
         next,
@@ -382,6 +411,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         addToQueue,
         clearQueue,
         dismissError,
+        seek,
       }}
     >
       {children}
@@ -395,4 +425,4 @@ export function usePlayer() {
   return ctx;
 }
 
-export { getVideoId, getTitle, getArtist, getThumbnail, isYouTubeSource };
+export { getVideoId, getTitle, getArtist, getThumbnail, isYouTubeSource, formatTime };

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import type { Song, Artist, Album } from "../../types";
-import { Plus, Search, CreditCard as Edit2, Trash2, X, Music } from "lucide-react";
+import { Plus, Search, CreditCard as Edit2, Trash2, X, Music, Youtube } from "lucide-react";
 
 const SECTIONS = [
   { value: "", label: "None" },
@@ -10,6 +10,22 @@ const SECTIONS = [
   { value: "new_release", label: "New Releases" },
   { value: "popular", label: "Popular" },
 ];
+
+function extractYouTubeId(input: string): string {
+  if (!input) return "";
+  const trimmed = input.trim();
+  // Already a bare 11-char video ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
+  // youtu.be/VIDEOID
+  const shortMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (shortMatch) return shortMatch[1];
+  // youtube.com/watch?v=VIDEOID or youtube.com/embed/VIDEOID
+  const longMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || trimmed.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (longMatch) return longMatch[1];
+  // Try to find any 11-char segment that looks like a video ID
+  const fallback = trimmed.match(/([a-zA-Z0-9_-]{11})/);
+  return fallback ? fallback[1] : "";
+}
 
 export default function AdminSongs() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -143,6 +159,7 @@ export default function AdminSongs() {
                 <p className="truncate text-sm font-medium text-ink-50">{song.title}</p>
                 <p className="truncate text-xs text-ink-400">{song.artist?.name ?? "Unknown"}</p>
               </div>
+              <span className="hidden text-xs text-ink-400 sm:inline">#{song.section_order}</span>
               {song.section && (
                 <span className="badge bg-mint-500/10 text-mint-400">{SECTIONS.find((s) => s.value === song.section)?.label ?? song.section}</span>
               )}
@@ -188,7 +205,7 @@ function SongModal({ song, artists, albums, onSave, onClose }: {
     title: song?.title ?? "",
     artist_id: song?.artist_id ?? "",
     album_id: song?.album_id ?? "",
-    video_id: song?.video_id ?? "",
+    youtubeUrl: song?.video_id ? `https://www.youtube.com/watch?v=${song.video_id}` : "",
     cover_url: song?.cover_url ?? "",
     audio_url: song?.audio_url ?? "",
     duration: song?.duration ?? "",
@@ -196,10 +213,18 @@ function SongModal({ song, artists, albums, onSave, onClose }: {
     section_order: song?.section_order ?? 0,
     is_published: song?.is_published ?? true,
   });
+  const [videoId, setVideoId] = useState(song?.video_id ?? "");
+
+  const handleYouTubeInput = (url: string) => {
+    setForm({ ...form, youtubeUrl: url });
+    const id = extractYouTubeId(url);
+    setVideoId(id);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(form);
+    const finalVideoId = videoId || extractYouTubeId(form.youtubeUrl);
+    onSave({ ...form, video_id: finalVideoId });
   };
 
   return (
@@ -212,13 +237,34 @@ function SongModal({ song, artists, albums, onSave, onClose }: {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-ink-200">Title *</label>
-            <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" />
+            <label className="mb-1 block text-sm font-medium text-ink-200">Song Title *</label>
+            <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" placeholder="Enter song title" />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink-200">YouTube Link *</label>
+            <div className="relative">
+              <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500" size={16} />
+              <input
+                required
+                value={form.youtubeUrl}
+                onChange={(e) => handleYouTubeInput(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=…"
+                className="input-field pl-10 font-mono text-xs"
+              />
+            </div>
+            {videoId ? (
+              <p className="mt-1 text-xs text-mint-400">Video ID extracted: <span className="font-mono">{videoId}</span></p>
+            ) : form.youtubeUrl ? (
+              <p className="mt-1 text-xs text-danger-500">Could not extract video ID from this URL</p>
+            ) : (
+              <p className="mt-1 text-xs text-ink-400">Paste any YouTube URL — the video ID is extracted automatically</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-ink-200">Artist</label>
+              <label className="mb-1 block text-sm font-medium text-ink-200">Artist (optional)</label>
               <select value={form.artist_id} onChange={(e) => setForm({ ...form, artist_id: e.target.value })} className="input-field">
                 <option value="">None</option>
                 {artists.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -234,28 +280,17 @@ function SongModal({ song, artists, albums, onSave, onClose }: {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-ink-200">YouTube Video ID</label>
-            <input value={form.video_id} onChange={(e) => setForm({ ...form, video_id: e.target.value })} placeholder="dQw4w9WgXcQ" className="input-field font-mono text-xs" />
-            <p className="mt-1 text-xs text-ink-400">Used for playback via YouTube embed</p>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink-200">Cover Image URL</label>
+            <label className="mb-1 block text-sm font-medium text-ink-200">Cover Image URL (optional)</label>
             <input value={form.cover_url} onChange={(e) => setForm({ ...form, cover_url: e.target.value })} placeholder="https://…" className="input-field" />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink-200">Audio URL (optional)</label>
-            <input value={form.audio_url} onChange={(e) => setForm({ ...form, audio_url: e.target.value })} placeholder="https://…" className="input-field" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-ink-200">Duration</label>
+              <label className="mb-1 block text-sm font-medium text-ink-200">Duration (optional)</label>
               <input value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} placeholder="3:45" className="input-field" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-ink-200">Homepage Section</label>
+              <label className="mb-1 block text-sm font-medium text-ink-200">Category</label>
               <select value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} className="input-field">
                 {SECTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
@@ -263,19 +298,19 @@ function SongModal({ song, artists, albums, onSave, onClose }: {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-ink-200">Section Order</label>
+            <label className="mb-1 block text-sm font-medium text-ink-200">Display Order</label>
             <input type="number" value={form.section_order} onChange={(e) => setForm({ ...form, section_order: Number(e.target.value) })} className="input-field" />
-            <p className="mt-1 text-xs text-ink-400">Lower numbers appear first</p>
+            <p className="mt-1 text-xs text-ink-400">Lower numbers appear first in the section</p>
           </div>
 
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} className="h-4 w-4 accent-mint-500" />
-            <span className="text-sm text-ink-200">Published (visible on site)</span>
+            <span className="text-sm text-ink-200">Published / active (visible on BytesMusic)</span>
           </label>
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-            <button type="submit" className="btn-primary">{song ? "Save Changes" : "Create Song"}</button>
+            <button type="submit" className="btn-primary">{song ? "Save Changes" : "Add Song"}</button>
           </div>
         </form>
       </div>

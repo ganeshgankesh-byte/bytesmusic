@@ -49,7 +49,7 @@ export default function Layout() {
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
-        <main className="flex-1 overflow-y-auto pb-24">
+        <main className="flex-1 overflow-y-auto pb-32">
           <Outlet />
         </main>
       </div>
