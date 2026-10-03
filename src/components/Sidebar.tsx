@@ -1,5 +1,5 @@
 import { NavLink, Link } from "react-router-dom";
-import { Chrome as Home, Search, Clock, Heart, Music2, X, LogOut } from "lucide-react";
+import { Chrome as Home, Search, Clock, Heart, Music2, X, LogOut, Shield } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const navItems = [
@@ -18,7 +18,7 @@ export default function Sidebar({
   onClose: () => void;
   collapsed: boolean;
 }) {
-  const { user, signOut } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
 
   return (
     <>
@@ -60,6 +60,27 @@ export default function Sidebar({
               {!collapsed && <span className="truncate">{item.label}</span>}
             </NavLink>
           ))}
+
+          {isAdmin && (
+            <div className="mt-2 border-t border-base-600 pt-2">
+              <NavLink
+                to="/admin"
+                onClick={() => onClose()}
+                className={({ isActive }) =>
+                  `flex items-center rounded-lg text-sm font-medium transition-all ${
+                    collapsed ? "justify-center p-2.5 lg:justify-center" : "gap-3 px-3 py-2.5"
+                  } ${
+                    isActive
+                      ? "bg-mint-500/10 text-mint-400"
+                      : "text-ink-300 hover:bg-base-700 hover:text-ink-100"
+                  }`
+                }
+              >
+                <Shield size={18} className="shrink-0" />
+                {!collapsed && <span className="truncate">Admin Panel</span>}
+              </NavLink>
+            </div>
+          )}
         </nav>
 
         <div className="mt-auto border-t border-base-600 p-2 lg:p-3">
