@@ -1,25 +1,34 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, Link } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import PlayerBar from "./PlayerBar";
 import { useAuth } from "../context/AuthContext";
-import { Link } from "react-router-dom";
-import { Music2, Menu, X } from "lucide-react";
+import { Music2, Menu, X, PanelLeftClose, PanelLeft } from "lucide-react";
 import { useState } from "react";
 
 export default function Layout() {
   const { user } = useAuth();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <div className="flex h-screen flex-col bg-base-900">
       {/* Top bar */}
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-base-600 bg-base-800/80 px-4 backdrop-blur-md">
         <div className="flex items-center gap-3">
+          {/* Mobile: toggle slide-in sidebar */}
           <button
             className="rounded-lg p-2 text-ink-300 hover:bg-base-700 hover:text-mint-400 lg:hidden"
             onClick={() => setMobileNavOpen((o) => !o)}
           >
             {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          {/* Desktop: toggle collapse sidebar */}
+          <button
+            className="hidden rounded-lg p-2 text-ink-300 hover:bg-base-700 hover:text-mint-400 lg:block"
+            onClick={() => setSidebarCollapsed((c) => !c)}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? <PanelLeft size={20} /> : <PanelLeftClose size={20} />}
           </button>
           <Link to="/" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mint-500/10">
@@ -48,7 +57,11 @@ export default function Layout() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+        <Sidebar
+          mobileOpen={mobileNavOpen}
+          onClose={() => setMobileNavOpen(false)}
+          collapsed={sidebarCollapsed}
+        />
         <main className="flex-1 overflow-y-auto pb-32">
           <Outlet />
         </main>
