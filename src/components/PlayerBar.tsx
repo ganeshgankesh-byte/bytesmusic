@@ -105,7 +105,7 @@ export default function PlayerBar() {
 
   if (!currentTrack) {
     return (
-      <footer className="fixed bottom-0 left-0 right-0 z-20 flex h-16 items-center justify-center border-t border-base-600 bg-base-800/95 px-4 backdrop-blur-md">
+      <footer className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-center border-t border-base-600 bg-base-800/95 px-4 backdrop-blur-md">
         <p className="text-sm text-ink-400">Select a song to start playing</p>
       </footer>
     );
@@ -196,7 +196,7 @@ export default function PlayerBar() {
         </div>
       )}
 
-      <footer className="fixed bottom-0 left-0 right-0 z-20 flex flex-col border-t border-base-600 bg-base-800/95 backdrop-blur-md">
+      <footer className="fixed bottom-0 left-0 right-0 z-50 flex flex-col border-t border-base-600 bg-base-800/95 backdrop-blur-md">
         {/* Seek bar */}
         <div
           ref={seekBarRef}
