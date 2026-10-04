@@ -99,7 +99,7 @@ export default function Home() {
             ) : (
               <div className="relative flex h-full flex-col items-center justify-center bg-gradient-to-br from-base-800 via-base-700 to-base-800">
                 <div className="absolute inset-0 opacity-20" style={{
-                  backgroundImage: "radial-gradient(circle at 30% 50%, #00e59933, transparent 50%), radial-gradient(circle at 70% 50%, #00b37722, transparent 50%)"
+                  backgroundImage: "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.08), transparent 50%), radial-gradient(circle at 70% 50%, rgba(255,255,255,0.04), transparent 50%)"
                 }} />
                 <div className="relative z-10 text-center">
                   <h1 className="mb-2 text-3xl font-bold text-ink-50 sm:text-4xl lg:text-5xl">
